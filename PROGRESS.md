@@ -100,10 +100,13 @@
 - [x] Commit
 
 ### Phase 6 — OTA
-- [ ] Create ota_mgr component (esp_https_ota wrapper)
-- [ ] Version check on boot or periodic
-- [ ] Kconfig for OTA server URL
-- [ ] Commit
+- [x] Create ota_mgr component with real/mock backends
+- [x] Real: esp_https_ota wrapper with periodic + on-demand checks
+- [x] Mock: no-op
+- [x] OTA partition layout: ota_0 + ota_1 (1.75 MB each), 4.4 MB LittleFS
+- [x] Kconfig: OTA server URL, check interval (60-86400s)
+- [x] Build: real+production 1215 KB (fits in 1.75 MB OTA slot)
+- [x] Commit
 
 ## Component Directory
 

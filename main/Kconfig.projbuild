@@ -59,4 +59,22 @@ menu "Weather Station"
 
     endmenu
 
+    menu "OTA Updates"
+        depends on APP_MODE_PRODUCTION && !HAL_USE_MOCK
+
+        config OTA_SERVER_URL
+            string "OTA firmware URL"
+            default "http://192.168.1.100:8080/firmware/weather_station.bin"
+            help
+                URL pointing to the firmware .bin file for OTA updates.
+
+        config OTA_CHECK_INTERVAL_S
+            int "OTA check interval (seconds)"
+            default 3600
+            range 60 86400
+            help
+                How often to check for firmware updates.
+
+    endmenu
+
 endmenu

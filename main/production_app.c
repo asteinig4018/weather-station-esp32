@@ -13,6 +13,7 @@
 #include "data_store.h"
 #include "ui.h"
 #include "net_mgr.h"
+#include "ota_mgr.h"
 #include "app_config.h"
 
 #include "freertos/FreeRTOS.h"
@@ -140,6 +141,15 @@ void production_app_run(void)
                  esp_err_to_name(ret));
     } else {
         ESP_LOGI(TAG, "Network manager initialised");
+    }
+
+    /* --- Initialise OTA manager ------------------------------------------ */
+    ret = ota_mgr_init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "OTA manager init failed: %s (continuing without OTA)",
+                 esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "OTA manager initialised");
     }
 
     /* --- Start tasks ----------------------------------------------------- */

@@ -25,6 +25,7 @@ idf_component_register(
         data_store
         ui
         net_mgr
+        ota_mgr
         drv_ili9341
         drv_sen66
         drv_ism330dhc
