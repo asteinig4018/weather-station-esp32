@@ -11,6 +11,7 @@
 #include "sensor_task.h"
 #include "button_task.h"
 #include "hal_display.h"
+#include "data_store.h"
 #include "app_config.h"
 
 #include "freertos/FreeRTOS.h"
@@ -33,12 +34,14 @@ static void on_sensor_data(void *handler_arg, esp_event_base_t base,
 
     const hal_sensor_data_t *d = (const hal_sensor_data_t *)event_data;
 
+    /* Store to ring buffer */
+    data_store_append(d);
+
     ESP_LOGI(TAG, "SENSOR | T=%.1f°C  P=%.0fPa  PM2.5=%.1f  RH=%.0f%%  VOC=%.0f  "
-                   "Ax=%.2f Ay=%.2f Az=%.2f  pwrgd=%d",
+                   "stored=%u",
              d->baro.temp_c, d->baro.pressure_pa,
              d->air.pm2p5, d->air.hum_pct, d->air.voc,
-             d->accel.x, d->accel.y, d->accel.z,
-             d->pwrgd);
+             (unsigned)data_store_count());
 
     /* TODO Phase 4: update LVGL dashboard with latest data */
 }
@@ -86,6 +89,11 @@ void production_app_run(void)
     esp_event_loop_handle_t loop;
     ESP_ERROR_CHECK(esp_event_loop_create(&loop_args, &loop));
     ESP_LOGI(TAG, "Application event loop created");
+
+    /* --- Initialise data store ------------------------------------------- */
+    ESP_ERROR_CHECK(data_store_init());
+    ESP_LOGI(TAG, "Data store initialised (%u existing entries)",
+             (unsigned)data_store_count());
 
     /* --- Initialise display ---------------------------------------------- */
     esp_err_t ret = hal_display_init();

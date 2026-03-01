@@ -69,14 +69,15 @@
 - [x] Commit
 
 ### Phase 3 — Data Store (History)
-- [ ] Create hal_storage component
-- [ ] Implement hal_storage_real.c (LittleFS ring buffer)
-- [ ] Implement hal_storage_mock.c (RAM ring buffer)
-- [ ] Create data_store component (timestamped snapshots)
-- [ ] Subscribe data_store to SENSOR_DATA events
-- [ ] Add SNTP time sync (or monotonic fallback)
-- [ ] QEMU test with mock storage
-- [ ] Commit
+- [x] Create data_store component with real/mock backends
+- [x] Real: LittleFS-backed binary ring buffer (6 MB partition, 2048 entries max)
+- [x] Mock: statically allocated RAM ring buffer
+- [x] Custom partition table (partitions.csv): 2 MB app + 6 MB LittleFS
+- [x] Integrate into production_app: sensor events auto-stored
+- [x] IDF component dependency: joltwallet/littlefs ^1.14
+- [x] Build test: all 4 modes pass (real/mock × debug/production)
+- [ ] Add SNTP time sync (deferred to Phase 5 with network)
+- [x] Commit
 
 ### Phase 4 — LVGL UI
 - [ ] Integrate esp_lvgl_port
@@ -110,8 +111,7 @@ components/
   drv_ism330dhc/        ST ISM330DHC IMU driver
   hal_sensors/          Sensor HAL (real or mock backend)
   hal_display/          Display HAL (real or mock backend)
-  hal_storage/          Storage HAL (real or mock backend)
-  data_store/           Timestamped ring buffer on flash
+  data_store/           Ring buffer (LittleFS real / RAM mock)
   net_mgr/              WiFi manager + HTTP uploader
   ota_mgr/              OTA update manager
 

@@ -22,6 +22,7 @@ idf_component_register(
         board_config
         hal_sensors
         hal_display
+        data_store
         drv_ili9341
         drv_sen66
         drv_ism330dhc
