@@ -30,4 +30,5 @@ idf_component_register(
         drv_sen66
         drv_ism330dhc
         drv_bmp851
+        web_server
 )

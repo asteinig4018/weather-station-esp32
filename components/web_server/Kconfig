@@ -1,0 +1,11 @@
+menu "Web Server"
+    depends on !HAL_USE_MOCK
+
+    config WEB_SERVER_PORT
+        int "HTTP server port"
+        default 80
+        range 1 65535
+        help
+            Port for the built-in HTTP server (status API + OTA push).
+
+endmenu

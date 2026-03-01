@@ -14,6 +14,7 @@
 #include "ui.h"
 #include "net_mgr.h"
 #include "ota_mgr.h"
+#include "web_server.h"
 #include "app_config.h"
 
 #include "freertos/FreeRTOS.h"
@@ -44,6 +45,9 @@ static void on_sensor_data(void *handler_arg, esp_event_base_t base,
 
     /* Feed to network manager for upload */
     net_mgr_feed_sensor_data(d);
+
+    /* Feed to web server for /api/status */
+    web_server_feed_sensor_data(d);
 
     ESP_LOGD(TAG, "SENSOR | T=%.1f°C  P=%.0fPa  PM2.5=%.1f  stored=%u",
              d->baro.temp_c, d->baro.pressure_pa,
@@ -150,6 +154,15 @@ void production_app_run(void)
                  esp_err_to_name(ret));
     } else {
         ESP_LOGI(TAG, "OTA manager initialised");
+    }
+
+    /* --- Initialise web server ------------------------------------------- */
+    ret = web_server_init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Web server init failed: %s (continuing without dashboard)",
+                 esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "Web server initialised");
     }
 
     /* --- Start tasks ----------------------------------------------------- */

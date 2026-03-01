@@ -108,6 +108,26 @@
 - [x] Build: real+production 1215 KB (fits in 1.75 MB OTA slot)
 - [x] Commit
 
+### Phase 7 — Web Server + Dashboard Server
+- [x] Create web_server ESP32 component (esp_http_server: /api/status, /api/info, POST /api/ota)
+- [x] Real: HTTP server with sensor JSON, device info, OTA push endpoint
+- [x] Mock: no-op stubs
+- [x] Kconfig: WEB_SERVER_PORT (default 80)
+- [x] Integrate into production_app (feed_sensor_data + init)
+- [x] Build: all 4 modes pass — real+production 1273 KB (31% free in OTA slot)
+- [x] Create FastAPI server project (~/projects/weather-station-server/)
+  - POST /api/telemetry — receive + store sensor JSON in SQLite
+  - GET /api/history — query historical readings (JSON + CSV export)
+  - GET /api/device/status, /api/device/info — proxy to ESP32
+  - POST /api/ota/push — upload .bin, push to ESP32 via HTTP POST
+  - GET /firmware/{name}.bin — serve firmware for pull-OTA fallback
+- [x] Create React + Vite + TypeScript dashboard (dark theme)
+  - Dashboard page: live sensor cards with auto-refresh, color-coded alerts
+  - History page: Recharts time-series charts + data table + CSV export
+  - Device page: firmware version, uptime, heap, IP, RSSI
+  - OTA page: file upload + push to ESP32
+- [x] Commit
+
 ## Component Directory
 
 ```
@@ -122,6 +142,7 @@ components/
   ui/                   LVGL UI (real) / mock logger
   net_mgr/              WiFi manager + HTTP uploader
   ota_mgr/              OTA update manager
+  web_server/           HTTP server (status API + push OTA)
 
 main/
   main.c                Init + dispatch by app mode
@@ -142,3 +163,7 @@ main/
 | 2026-03-01 | LittleFS over SPIFFS for data_store | Better wear leveling, directory support, power-loss resilience |
 | 2026-03-01 | Separate debug_app vs production_app | Debug app does sequential hw test; production runs concurrent tasks |
 | 2026-03-01 | UART0 console in mock sdkconfig | QEMU doesn't emulate USB CDC; ESP_CONSOLE_UART_DEFAULT needed for serial output |
+| 2026-03-01 | External server for dashboard (not on-device) | ESP32 RAM/flash constraints limit dashboard complexity; server allows React SPA with charts |
+| 2026-03-01 | Push OTA over HTTP POST to ESP32 | Server builds firmware, pushes directly; more immediate than pull-based polling |
+| 2026-03-01 | SQLite for historical data on server | Zero-config, single file, sufficient for local weather station workload |
+| 2026-03-01 | FastAPI + React + Vite | Async Python backend, modern TS frontend, no build complexity beyond npm/pip |
