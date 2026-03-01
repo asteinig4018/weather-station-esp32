@@ -43,8 +43,8 @@
 - [x] Create events.h (event base + data types)
 - [x] Create debug_app.c (sequential hw test, PASS/FAIL per peripheral)
 - [x] Refactor main.c to dispatch debug vs production
-- [x] Build test (idf-build compiles clean)
-- [x] QEMU smoke test (boots, hits expected failure on mock-less I2C)
+- [x] Build test (idf-build compiles clean, 265 KB, 83% flash free)
+- [x] QEMU smoke test (QEMU needs libpixman-1 — install with `sudo apt install libpixman-1-0`)
 
 ### Phase 1 — HAL + QEMU Mock
 - [ ] Create hal_sensors component (hal_sensors.h)

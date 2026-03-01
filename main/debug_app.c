@@ -1,10 +1,12 @@
 /**
  * debug_app.c — Sequential hardware test for the weather station board.
  *
- * Each test prints a clear PASS / FAIL line for easy parsing.
- * On completion, LEDs indicate overall result:
- *   - Status LED solid ON  = all tests passed
- *   - Alert LED blinking   = one or more tests failed
+ * In real mode (CONFIG_HAL_USE_MOCK=n):
+ *   Tests each peripheral individually via direct driver calls.
+ *
+ * In mock mode (CONFIG_HAL_USE_MOCK=y):
+ *   Verifies the HAL mock layer works correctly by reading synthetic data
+ *   in a loop and validating it is in expected ranges.
  */
 
 #include "debug_app.h"
@@ -12,19 +14,25 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "sdkconfig.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/i2c.h"
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 
 #include "board.h"
 #include "app_config.h"
+#include "hal_sensors.h"
+#include "hal_display.h"
+
+#if !CONFIG_HAL_USE_MOCK
+#include "driver/i2c.h"
 #include "ili9341.h"
 #include "sen66.h"
 #include "bmp851.h"
 #include "ism330dhc.h"
+#endif
 
 static const char *TAG = "hw_test";
 
@@ -37,7 +45,7 @@ typedef struct {
     const char *detail;
 } test_result_t;
 
-#define MAX_TESTS 8
+#define MAX_TESTS 12
 static test_result_t s_results[MAX_TESTS];
 static int           s_num_tests = 0;
 
@@ -56,12 +64,145 @@ static void record(const char *name, bool passed, const char *detail)
     }
 }
 
-/* -------------------------------------------------------------------------
- * Test 1: I2C bus scan
- *
- * Probe every address 0x03–0x77 and report which respond.
- * Check specifically for our three expected devices.
- * ------------------------------------------------------------------------- */
+static void print_summary(void)
+{
+    int pass_count = 0;
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "============================================");
+    ESP_LOGI(TAG, "  HARDWARE TEST SUMMARY");
+    ESP_LOGI(TAG, "============================================");
+    for (int i = 0; i < s_num_tests; i++) {
+        const char *mark = s_results[i].passed ? "PASS" : "FAIL";
+        ESP_LOGI(TAG, "  [%s] %-25s %s", mark,
+                 s_results[i].name, s_results[i].detail);
+        if (s_results[i].passed) pass_count++;
+    }
+    ESP_LOGI(TAG, "--------------------------------------------");
+    ESP_LOGI(TAG, "  Result: %d / %d passed", pass_count, s_num_tests);
+    ESP_LOGI(TAG, "============================================");
+    ESP_LOGI(TAG, "");
+}
+
+/* =========================================================================
+ * MOCK MODE: Test the HAL layer with synthetic data
+ * ========================================================================= */
+
+#if CONFIG_HAL_USE_MOCK
+
+static void test_hal_sensors_mock(void)
+{
+    ESP_LOGI(TAG, "--- Test: HAL sensors (mock) ---");
+
+    hal_sensor_status_t st;
+    esp_err_t ret = hal_sensors_init(&st);
+    record("HAL sensor init", ret == ESP_OK && st.sen66_ok && st.bmp851_ok && st.ism330dhc_ok,
+           ret == ESP_OK ? "all mock sensors OK" : "init failed");
+
+    if (ret != ESP_OK) return;
+
+    /* Read 5 consecutive snapshots, validate data is in expected ranges */
+    bool all_ok = true;
+    for (int i = 0; i < 5; i++) {
+        hal_sensor_data_t data;
+        ret = hal_sensors_read(&data);
+        if (ret != ESP_OK) { all_ok = false; break; }
+
+        /* Validate ranges for mock data */
+        bool temp_ok = (data.baro.temp_c > 10.0f && data.baro.temp_c < 35.0f);
+        bool pres_ok = (data.baro.pressure_pa > 100000.0f && data.baro.pressure_pa < 102000.0f);
+        bool pm_ok   = (data.air.pm2p5 >= 0.0f && data.air.pm2p5 < 60.0f);
+        bool accel_ok = (data.accel.z > 9.0f && data.accel.z < 10.5f);
+        bool ts_ok   = (data.timestamp_us > 0);
+
+        if (!temp_ok || !pres_ok || !pm_ok || !accel_ok || !ts_ok) {
+            ESP_LOGE(TAG, "  Sample %d out of range: T=%.1f P=%.0f PM=%.1f Az=%.2f ts=%lld",
+                     i, data.baro.temp_c, data.baro.pressure_pa,
+                     data.air.pm2p5, data.accel.z, data.timestamp_us);
+            all_ok = false;
+        } else {
+            ESP_LOGI(TAG, "  Sample %d: T=%.1f°C  P=%.0fPa  PM2.5=%.1f  Az=%.2f",
+                     i, data.baro.temp_c, data.baro.pressure_pa,
+                     data.air.pm2p5, data.accel.z);
+        }
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+
+    record("HAL sensor read (5x)", all_ok, all_ok ? "all in range" : "out of range");
+    hal_sensors_deinit();
+}
+
+static void test_hal_display_mock(void)
+{
+    ESP_LOGI(TAG, "--- Test: HAL display (mock) ---");
+
+    esp_err_t ret = hal_display_init();
+    record("HAL display init", ret == ESP_OK,
+           ret == ESP_OK ? "mock display ready" : "init failed");
+
+    if (ret != ESP_OK) return;
+
+    /* Test fill and bitmap calls */
+    ret = hal_display_fill_rect(0, 0, hal_display_width() - 1, 39, 0xF800);
+    record("HAL display fill", ret == ESP_OK, "fill_rect OK");
+
+    ret = hal_display_set_backlight(true);
+    record("HAL display backlight", ret == ESP_OK, "backlight on");
+}
+
+void debug_app_run(void)
+{
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "============================================");
+    ESP_LOGI(TAG, "  WEATHER STATION — MOCK MODE TEST");
+    ESP_LOGI(TAG, "  (no real hardware required)");
+    ESP_LOGI(TAG, "============================================");
+    ESP_LOGI(TAG, "");
+
+    test_hal_sensors_mock();
+    test_hal_display_mock();
+
+    print_summary();
+
+    bool all_passed = true;
+    for (int i = 0; i < s_num_tests; i++) {
+        if (!s_results[i].passed) { all_passed = false; break; }
+    }
+
+    if (all_passed) {
+        ESP_LOGI(TAG, "All mock tests passed. System ready for QEMU / CI.");
+    } else {
+        ESP_LOGW(TAG, "Some mock tests failed — check HAL implementation.");
+    }
+
+    /* In mock mode, run a continuous sensor loop to exercise the data path */
+    ESP_LOGI(TAG, "");
+    ESP_LOGI(TAG, "Starting continuous mock sensor loop (2 s interval)...");
+    hal_sensor_status_t st;
+    hal_sensors_init(&st);
+
+    for (int count = 0; ; count++) {
+        hal_sensor_data_t data;
+        hal_sensors_read(&data);
+        ESP_LOGI(TAG, "[%d] T=%.1f°C  P=%.0fPa  PM2.5=%.1f  RH=%.0f%%  VOC=%.0f  Ax=%.2f Az=%.2f  pwrgd=%d",
+                 count,
+                 data.baro.temp_c,
+                 data.baro.pressure_pa,
+                 data.air.pm2p5,
+                 data.air.hum_pct,
+                 data.air.voc,
+                 data.accel.x,
+                 data.accel.z,
+                 data.pwrgd);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+/* =========================================================================
+ * REAL MODE: Test actual hardware peripherals
+ * ========================================================================= */
+
+#else /* !CONFIG_HAL_USE_MOCK */
+
 static void test_i2c_scan(void)
 {
     ESP_LOGI(TAG, "--- Test: I2C bus scan ---");
@@ -89,8 +230,6 @@ static void test_i2c_scan(void)
     }
 
     ESP_LOGI(TAG, "  Total devices found: %d", total_found);
-
-    /* Individual records */
     record("I2C: ISM330DHC (0x6A)", found_ism,
            found_ism ? "ACK received" : "no response at 0x6A");
     record("I2C: BMP851 (0x76)", found_bmp,
@@ -99,9 +238,6 @@ static void test_i2c_scan(void)
            found_sen ? "ACK received" : "no response at 0x6B");
 }
 
-/* -------------------------------------------------------------------------
- * Test 2: ISM330DHC — WHO_AM_I + sample read
- * ------------------------------------------------------------------------- */
 static void test_ism330dhc(void)
 {
     ESP_LOGI(TAG, "--- Test: ISM330DHC ---");
@@ -116,10 +252,9 @@ static void test_ism330dhc(void)
     }
     record("ISM330DHC init", true, "WHO_AM_I=0x6B, configured");
 
-    /* Sample read */
     ism330dhc_vec3_t accel, gyro;
     float temp;
-    vTaskDelay(pdMS_TO_TICKS(50)); /* let ODR stabilise */
+    vTaskDelay(pdMS_TO_TICKS(50));
 
     ret = ism330dhc_read_accel(imu, &accel);
     if (ret == ESP_OK) {
@@ -138,13 +273,9 @@ static void test_ism330dhc(void)
 
     record("ISM330DHC read", ret == ESP_OK,
            ret == ESP_OK ? "accel/gyro/temp OK" : "read error");
-
     ism330dhc_deinit(imu);
 }
 
-/* -------------------------------------------------------------------------
- * Test 3: BMP851 — chip ID + forced measurement
- * ------------------------------------------------------------------------- */
 static void test_bmp851(void)
 {
     ESP_LOGI(TAG, "--- Test: BMP851 ---");
@@ -159,7 +290,6 @@ static void test_bmp851(void)
     }
     record("BMP851 init", true, "chip ID OK, calibration loaded");
 
-    /* Forced measurement */
     bmp851_data_t data;
     ret = bmp851_read(baro, &data);
     if (ret == ESP_OK) {
@@ -167,7 +297,6 @@ static void test_bmp851(void)
                  data.pressure_pa / 100.0f);
         ESP_LOGI(TAG, "  Temp:     %.2f °C", data.temp_c);
 
-        /* Sanity check: sea-level pressure 870–1085 hPa, temp -40–85 */
         bool sane = (data.pressure_pa > 87000.0f && data.pressure_pa < 108500.0f)
                   && (data.temp_c > -40.0f && data.temp_c < 85.0f);
         record("BMP851 read", sane,
@@ -175,13 +304,9 @@ static void test_bmp851(void)
     } else {
         record("BMP851 read", false, esp_err_to_name(ret));
     }
-
     bmp851_deinit(baro);
 }
 
-/* -------------------------------------------------------------------------
- * Test 4: SEN66 — reset + start + read one frame
- * ------------------------------------------------------------------------- */
 static void test_sen66(void)
 {
     ESP_LOGI(TAG, "--- Test: SEN66 ---");
@@ -203,7 +328,6 @@ static void test_sen66(void)
         return;
     }
 
-    /* SEN66 needs ~1 s to produce first valid frame */
     ESP_LOGI(TAG, "  Waiting for first SEN66 measurement (~2 s)...");
     vTaskDelay(pdMS_TO_TICKS(2000));
 
@@ -227,89 +351,55 @@ static void test_sen66(void)
     } else {
         record("SEN66 measurement", false, esp_err_to_name(ret));
     }
-
     sen66_deinit(air);
 }
 
-/* -------------------------------------------------------------------------
- * Test 5: Display — init + colour bars
- * ------------------------------------------------------------------------- */
 static void test_display(void)
 {
     ESP_LOGI(TAG, "--- Test: Display ---");
 
-    ili9341_config_t cfg = {
-        .data_gpio = {
-            BOARD_LCD_D0, BOARD_LCD_D1, BOARD_LCD_D2, BOARD_LCD_D3,
-            BOARD_LCD_D4, BOARD_LCD_D5, BOARD_LCD_D6, BOARD_LCD_D7,
-        },
-        .wr_gpio   = BOARD_LCD_WR,
-        .rd_gpio   = BOARD_LCD_RD,
-        .dc_gpio   = BOARD_LCD_DC,
-        .cs_gpio   = BOARD_LCD_CS,
-        .rst_gpio  = BOARD_LCD_RST,
-        .bl_gpio   = BOARD_LCD_BL,
-        .pclk_hz   = BOARD_LCD_PCLK_HZ,
-        .width     = BOARD_LCD_WIDTH,
-        .height    = BOARD_LCD_HEIGHT,
-    };
-
-    ili9341_handle_t disp = NULL;
-    esp_err_t ret = ili9341_init(&cfg, &disp);
-
+    esp_err_t ret = hal_display_init();
     if (ret != ESP_OK) {
         record("Display init", false, esp_err_to_name(ret));
         return;
     }
     record("Display init", true, "ILI9341 8080 I80 bus OK");
 
-    /* Draw 4 colour bars: Red, Green, Blue, White — each 80 px tall */
-    uint16_t colors[] = {0xF800, 0x07E0, 0x001F, 0xFFFF}; /* R, G, B, W */
-    const char *names[] = {"Red", "Green", "Blue", "White"};
-    uint16_t bar_h = BOARD_LCD_HEIGHT / 4;
+    uint16_t w = hal_display_width();
+    uint16_t h = hal_display_height();
+    uint16_t colors[] = {0xF800, 0x07E0, 0x001F, 0xFFFF};
+    uint16_t bar_h = h / 4;
 
     for (int i = 0; i < 4; i++) {
-        ret = ili9341_fill_rect(disp,
-                                 0, i * bar_h,
-                                 BOARD_LCD_WIDTH - 1, (i + 1) * bar_h - 1,
-                                 colors[i]);
+        ret = hal_display_fill_rect(0, i * bar_h, w - 1, (i + 1) * bar_h - 1,
+                                     colors[i]);
         if (ret != ESP_OK) {
-            ESP_LOGW(TAG, "  Fill %s bar failed", names[i]);
+            ESP_LOGW(TAG, "  Fill bar %d failed", i);
         }
     }
-
     record("Display draw", true, "4 colour bars drawn — verify visually");
-
-    /* Leave display on for visual inspection; don't deinit */
 }
 
-/* -------------------------------------------------------------------------
- * Test 6 / 7 / 8: GPIO — buttons, LEDs, power good
- * ------------------------------------------------------------------------- */
 static void test_gpio(void)
 {
     ESP_LOGI(TAG, "--- Test: GPIO ---");
 
-    /* Read button states */
     int ux   = gpio_get_level(BOARD_BTN_UX);
     int dbg0 = gpio_get_level(BOARD_BTN_DBG0);
     int dbg1 = gpio_get_level(BOARD_BTN_DBG1);
     ESP_LOGI(TAG, "  Buttons: UX=%d  DBG0=%d  DBG1=%d  (1=released, 0=pressed)",
              ux, dbg0, dbg1);
 
-    /* Read switch states */
     int sw0 = gpio_get_level(BOARD_SW0);
     int sw1 = gpio_get_level(BOARD_SW1);
     ESP_LOGI(TAG, "  Switches: SW0=%d  SW1=%d", sw0, sw1);
 
-    /* Read power good */
     int pwrgd = gpio_get_level(BOARD_PWRGD);
     ESP_LOGI(TAG, "  Power good: %d  (%s)", pwrgd,
              pwrgd ? "supply OK" : "supply BAD or not connected");
     record("Power good", true, pwrgd ? "HIGH — supply OK" : "LOW — check supply");
 
-    /* Blink LEDs: status then alert, 3 cycles each */
-    ESP_LOGI(TAG, "  Blinking status LED (3×)...");
+    ESP_LOGI(TAG, "  Blinking status LED (3x)...");
     for (int i = 0; i < 3; i++) {
         gpio_set_level(BOARD_LED_STATUS, 1);
         vTaskDelay(pdMS_TO_TICKS(200));
@@ -317,7 +407,7 @@ static void test_gpio(void)
         vTaskDelay(pdMS_TO_TICKS(200));
     }
 
-    ESP_LOGI(TAG, "  Blinking alert LED (3×)...");
+    ESP_LOGI(TAG, "  Blinking alert LED (3x)...");
     for (int i = 0; i < 3; i++) {
         gpio_set_level(BOARD_LED_ALERT, 1);
         vTaskDelay(pdMS_TO_TICKS(200));
@@ -328,37 +418,13 @@ static void test_gpio(void)
     record("LEDs", true, "blink sequence complete — verify visually");
 }
 
-/* -------------------------------------------------------------------------
- * Summary + result indication loop
- * ------------------------------------------------------------------------- */
-static void print_summary(void)
-{
-    int pass_count = 0;
-    ESP_LOGI(TAG, "");
-    ESP_LOGI(TAG, "============================================");
-    ESP_LOGI(TAG, "  HARDWARE TEST SUMMARY");
-    ESP_LOGI(TAG, "============================================");
-    for (int i = 0; i < s_num_tests; i++) {
-        const char *mark = s_results[i].passed ? "PASS" : "FAIL";
-        ESP_LOGI(TAG, "  [%s] %-25s %s", mark,
-                 s_results[i].name, s_results[i].detail);
-        if (s_results[i].passed) pass_count++;
-    }
-    ESP_LOGI(TAG, "--------------------------------------------");
-    ESP_LOGI(TAG, "  Result: %d / %d passed", pass_count, s_num_tests);
-    ESP_LOGI(TAG, "============================================");
-    ESP_LOGI(TAG, "");
-}
-
 static void result_led_loop(bool all_passed)
 {
     if (all_passed) {
-        /* Solid status LED = all good */
         gpio_set_level(BOARD_LED_STATUS, 1);
         gpio_set_level(BOARD_LED_ALERT,  0);
         ESP_LOGI(TAG, "All tests passed. Status LED solid ON.");
     } else {
-        /* Blink alert LED = something failed */
         gpio_set_level(BOARD_LED_STATUS, 0);
         ESP_LOGW(TAG, "Some tests failed. Alert LED blinking.");
     }
@@ -375,9 +441,6 @@ static void result_led_loop(bool all_passed)
     }
 }
 
-/* -------------------------------------------------------------------------
- * Public entry point
- * ------------------------------------------------------------------------- */
 void debug_app_run(void)
 {
     ESP_LOGI(TAG, "");
@@ -387,7 +450,6 @@ void debug_app_run(void)
     ESP_LOGI(TAG, "============================================");
     ESP_LOGI(TAG, "");
 
-    /* Run tests in order */
     test_i2c_scan();
     test_ism330dhc();
     test_bmp851();
@@ -395,15 +457,13 @@ void debug_app_run(void)
     test_display();
     test_gpio();
 
-    /* Summary */
     print_summary();
 
-    /* Count failures */
     bool all_passed = true;
     for (int i = 0; i < s_num_tests; i++) {
         if (!s_results[i].passed) { all_passed = false; break; }
     }
-
-    /* Loop forever with LED indication */
     result_led_loop(all_passed);
 }
+
+#endif /* CONFIG_HAL_USE_MOCK */

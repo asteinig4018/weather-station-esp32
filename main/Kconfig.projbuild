@@ -15,4 +15,18 @@ menu "Weather Station"
             bool "Production"
     endchoice
 
+    config HAL_USE_MOCK
+        bool "Use mock HAL backends (for QEMU / CI)"
+        default n
+        help
+            Replace real hardware drivers with mock backends that return
+            synthetic data. Enable this for QEMU testing, CI pipelines,
+            or development without hardware connected.
+
+            When enabled:
+              - hal_sensors returns sine-wave / random sensor data
+              - hal_display logs framebuffer content to UART
+              - I2C bus init is skipped
+              - Display parallel bus init is skipped
+
 endmenu

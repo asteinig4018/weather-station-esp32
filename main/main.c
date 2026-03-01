@@ -105,9 +105,13 @@ void app_main(void)
     ESP_LOGI(TAG, "Weather station starting...");
 
     /* --- Shared hardware init -------------------------------------------- */
+#if !CONFIG_HAL_USE_MOCK
     gpio_misc_init();
     gpio_set_level(BOARD_LED_STATUS, 1);  /* LED on during init */
     ESP_ERROR_CHECK(i2c_bus_init());
+#else
+    ESP_LOGW(TAG, "*** MOCK MODE — skipping GPIO/I2C hardware init ***");
+#endif
 
     /* --- Dispatch by build mode ----------------------------------------- */
 #if CONFIG_APP_MODE_DEBUG
