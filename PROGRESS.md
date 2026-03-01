@@ -44,7 +44,7 @@
 - [x] Create debug_app.c (sequential hw test, PASS/FAIL per peripheral)
 - [x] Refactor main.c to dispatch debug vs production
 - [x] Build test (idf-build compiles clean, 265 KB, 83% flash free)
-- [x] QEMU smoke test (QEMU needs libpixman-1 — install with `sudo apt install libpixman-1-0`)
+- [x] QEMU smoke test — 5/5 mock tests pass, continuous sensor loop runs (requires `libpixman-1-0 libsdl2-2.0-0 libslirp0`)
 
 ### Phase 1 — HAL + QEMU Mock
 - [x] Create hal_sensors component (hal_sensors.h)
@@ -141,3 +141,4 @@ main/
 | 2026-03-01 | HAL with compile-time mock via Kconfig | QEMU has no I2C/LCD_CAM; mock at HAL boundary is cleanest seam |
 | 2026-03-01 | LittleFS over SPIFFS for data_store | Better wear leveling, directory support, power-loss resilience |
 | 2026-03-01 | Separate debug_app vs production_app | Debug app does sequential hw test; production runs concurrent tasks |
+| 2026-03-01 | UART0 console in mock sdkconfig | QEMU doesn't emulate USB CDC; ESP_CONSOLE_UART_DEFAULT needed for serial output |
