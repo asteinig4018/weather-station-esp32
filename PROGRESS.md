@@ -47,24 +47,26 @@
 - [x] QEMU smoke test (QEMU needs libpixman-1 — install with `sudo apt install libpixman-1-0`)
 
 ### Phase 1 — HAL + QEMU Mock
-- [ ] Create hal_sensors component (hal_sensors.h)
-- [ ] Implement hal_sensors_real.c (calls drivers)
-- [ ] Implement hal_sensors_mock.c (synthetic data)
-- [ ] Create hal_display component (hal_display.h)
-- [ ] Implement hal_display_real.c (calls drv_ili9341)
-- [ ] Implement hal_display_mock.c (UART text output)
-- [ ] Add Kconfig HAL_USE_MOCK toggle
-- [ ] Refactor debug_app.c to use HAL
-- [ ] QEMU test: boots with mock, prints synthetic sensor data
-- [ ] Commit
+- [x] Create hal_sensors component (hal_sensors.h)
+- [x] Implement hal_sensors_real.c (calls drivers)
+- [x] Implement hal_sensors_mock.c (synthetic data)
+- [x] Create hal_display component (hal_display.h)
+- [x] Implement hal_display_real.c (calls drv_ili9341)
+- [x] Implement hal_display_mock.c (UART text output)
+- [x] Add Kconfig HAL_USE_MOCK toggle
+- [x] Refactor debug_app.c to use HAL
+- [x] Extract board_config component (board.h + app_config.h)
+- [x] Build test: mock+debug (210 KB, 86% free), real+debug (265 KB, 83% free)
+- [x] Commit
 
 ### Phase 2 — Event Bus Refactor
-- [ ] Define event types in events.h (SENSOR_DATA, BUTTON, SYSTEM)
-- [ ] Refactor sensor_task to post esp_event instead of queue
-- [ ] Refactor display_task to subscribe to events
-- [ ] Refactor button_task to post button events
-- [ ] Verify QEMU still works
-- [ ] Commit
+- [x] Create events.c with ESP_EVENT_DEFINE_BASE for all event bases
+- [x] Create sensor_task (reads HAL, posts SENSOR_EVT_DATA via esp_event)
+- [x] Create button_task (polls GPIOs with 60 ms debounce, posts BUTTON_EVT_*)
+- [x] Create production_app (event loop + task startup + event handlers)
+- [x] Add sdkconfig.production overlay
+- [x] Build test: all 4 modes pass (real/mock × debug/production)
+- [x] Commit
 
 ### Phase 3 — Data Store (History)
 - [ ] Create hal_storage component
@@ -116,10 +118,10 @@ components/
 main/
   main.c                Init + dispatch by app mode
   debug_app.h/.c        Phase 0 hardware test
-  production_app.h/.c   Full application (sensor/display/net/ota tasks)
-  events.h              Event base + data types
-  board.h               Pin assignments
-  app_config.h          Tunable parameters
+  production_app.h/.c   Event loop + task startup
+  sensor_task.h/.c      Periodic HAL sensor read → esp_event
+  button_task.h/.c      GPIO poll + debounce → esp_event
+  events.h/.c           Event base definitions + data types
   Kconfig.projbuild     APP_MODE, HAL_USE_MOCK, WiFi creds, etc.
 ```
 

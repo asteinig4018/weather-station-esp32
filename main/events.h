@@ -6,14 +6,12 @@
  * own event base and event IDs here so every file sees the same types.
  *
  * Usage:
- *   ESP_EVENT_DECLARE_BASE(SENSOR_EVENTS);  // already done below
- *   esp_event_handler_register(SENSOR_EVENTS, SENSOR_EVT_DATA, handler, ctx);
+ *   esp_event_handler_register_with(loop, SENSOR_EVENTS,
+ *                                    SENSOR_EVT_DATA, handler, ctx);
  */
 
 #include "esp_event.h"
-#include "sen66.h"
-#include "bmp851.h"
-#include "ism330dhc.h"
+#include "hal_sensors.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -33,15 +31,7 @@ typedef enum {
     SENSOR_EVT_DATA = 0,    /*!< New sensor snapshot available */
 } sensor_event_id_t;
 
-/** Payload posted with SENSOR_EVT_DATA. */
-typedef struct {
-    int64_t          timestamp_us; /*!< esp_timer_get_time() at read */
-    sen66_data_t     air;          /*!< SEN66 air quality + T/RH */
-    bmp851_data_t    baro;         /*!< BMP851 pressure + temperature */
-    ism330dhc_vec3_t accel;        /*!< ISM330DHC accelerometer [m/s²] */
-    ism330dhc_vec3_t gyro;         /*!< ISM330DHC gyroscope [dps] */
-    bool             pwrgd;        /*!< Power good signal */
-} sensor_data_t;
+/* Payload for SENSOR_EVT_DATA is hal_sensor_data_t (from hal_sensors.h) */
 
 /* =========================================================================
  * Button events

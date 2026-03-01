@@ -24,6 +24,8 @@
 
 #if CONFIG_APP_MODE_DEBUG
 #include "debug_app.h"
+#elif CONFIG_APP_MODE_PRODUCTION
+#include "production_app.h"
 #endif
 
 static const char *TAG = APP_LOG_TAG;
@@ -120,8 +122,7 @@ void app_main(void)
     /* debug_app_run() does not return */
 #elif CONFIG_APP_MODE_PRODUCTION
     ESP_LOGI(TAG, "Production mode — starting application tasks...");
-    /* TODO: Phase 2+ — production_app_run() will go here */
-    ESP_LOGW(TAG, "Production app not yet implemented. Halting.");
-    for (;;) { vTaskDelay(pdMS_TO_TICKS(1000)); }
+    production_app_run();
+    /* production_app_run() does not return */
 #endif
 }

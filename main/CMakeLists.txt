@@ -1,7 +1,11 @@
-set(SRCS "main.c")
+set(SRCS "main.c" "events.c")
 
 if(CONFIG_APP_MODE_DEBUG)
     list(APPEND SRCS "debug_app.c")
+endif()
+
+if(CONFIG_APP_MODE_PRODUCTION)
+    list(APPEND SRCS "production_app.c" "sensor_task.c" "button_task.c")
 endif()
 
 idf_component_register(
