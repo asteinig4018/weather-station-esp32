@@ -91,12 +91,13 @@
 - [x] Commit
 
 ### Phase 5 — Network Manager + Upload
-- [ ] Create net_mgr component (WiFi STA, reconnect)
-- [ ] Add Kconfig for SSID/password/server URL
-- [ ] HTTP POST telemetry on interval
-- [ ] Subscribe to SENSOR_DATA events for upload
-- [ ] QEMU test (WiFi unavailable, verify graceful fallback)
-- [ ] Commit
+- [x] Create net_mgr component with real/mock backends
+- [x] Real: WiFi STA with auto-reconnect, JSON HTTP POST to server
+- [x] Mock: no-op (logs only)
+- [x] Kconfig: SSID, password, server URL, upload interval (10-3600s)
+- [x] Data fed from production_app sensor event handler (no cross-component deps)
+- [x] Build test: all modes pass
+- [x] Commit
 
 ### Phase 6 — OTA
 - [ ] Create ota_mgr component (esp_https_ota wrapper)

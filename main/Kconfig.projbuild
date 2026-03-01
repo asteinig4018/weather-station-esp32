@@ -29,4 +29,34 @@ menu "Weather Station"
               - I2C bus init is skipped
               - Display parallel bus init is skipped
 
+    menu "Network"
+        depends on APP_MODE_PRODUCTION && !HAL_USE_MOCK
+
+        config NET_WIFI_SSID
+            string "WiFi SSID"
+            default "my_wifi"
+            help
+                WiFi network name to connect to.
+
+        config NET_WIFI_PASS
+            string "WiFi password"
+            default "my_password"
+            help
+                WiFi network password (WPA2-PSK).
+
+        config NET_SERVER_URL
+            string "Telemetry server URL"
+            default "http://192.168.1.100:8080/api/telemetry"
+            help
+                HTTP endpoint for POSTing sensor data JSON.
+
+        config NET_UPLOAD_INTERVAL_S
+            int "Upload interval (seconds)"
+            default 60
+            range 10 3600
+            help
+                How often to upload sensor data to the server.
+
+    endmenu
+
 endmenu

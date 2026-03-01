@@ -12,6 +12,7 @@
 #include "hal_display.h"
 #include "data_store.h"
 #include "ui.h"
+#include "net_mgr.h"
 #include "app_config.h"
 
 #include "freertos/FreeRTOS.h"
@@ -39,6 +40,9 @@ static void on_sensor_data(void *handler_arg, esp_event_base_t base,
 
     /* Update UI */
     ui_update_sensor_data(d);
+
+    /* Feed to network manager for upload */
+    net_mgr_feed_sensor_data(d);
 
     ESP_LOGD(TAG, "SENSOR | T=%.1f°C  P=%.0fPa  PM2.5=%.1f  stored=%u",
              d->baro.temp_c, d->baro.pressure_pa,
@@ -128,6 +132,15 @@ void production_app_run(void)
         loop, BUTTON_EVENTS, ESP_EVENT_ANY_ID, on_button, NULL));
 
     ESP_LOGI(TAG, "Event handlers registered");
+
+    /* --- Initialise network manager -------------------------------------- */
+    ret = net_mgr_init();
+    if (ret != ESP_OK) {
+        ESP_LOGW(TAG, "Network manager init failed: %s (continuing without upload)",
+                 esp_err_to_name(ret));
+    } else {
+        ESP_LOGI(TAG, "Network manager initialised");
+    }
 
     /* --- Start tasks ----------------------------------------------------- */
     ESP_ERROR_CHECK(sensor_task_start(loop));
