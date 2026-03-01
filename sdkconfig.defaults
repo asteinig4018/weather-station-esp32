@@ -1,0 +1,31 @@
+# Default Kconfig overrides for weather_station
+# Edit values here; do NOT commit sdkconfig itself.
+#
+# Re-apply after clean: idf.py set-target esp32s3
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# CPU / power
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Logging
+CONFIG_LOG_DEFAULT_LEVEL_DEBUG=y
+
+# Use native USB CDC for console (ESP32-S3 built-in USB)
+CONFIG_ESP_CONSOLE_USB_CDC=y
+
+# I2C driver (legacy driver; new driver is opt-in from IDF 5.x)
+CONFIG_I2C_ENABLE_DEBUG_LOG=n
+
+# LCD / parallel display
+# The LCD_CAM peripheral is enabled by default on ESP32-S3.
+# If you increase DMA transfer size, bump this:
+# CONFIG_LCD_PANEL_IO_FORMAT_BUF_SIZE=512
+
+# FreeRTOS
+CONFIG_FREERTOS_HZ=1000
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+
+# Flash: N8 = 8 MB SPI flash, Quad SPI
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_PARTITION_TABLE_SINGLE_APP_LARGE=y
