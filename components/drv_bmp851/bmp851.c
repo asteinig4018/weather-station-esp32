@@ -173,6 +173,7 @@ static double compensate_press(const bmp851_calib_t *c, uint32_t raw_p,
 esp_err_t bmp851_init(const bmp851_config_t *cfg, bmp851_handle_t *out_handle)
 {
     ESP_RETURN_ON_FALSE(cfg && out_handle, ESP_ERR_INVALID_ARG, TAG, "NULL");
+    esp_err_t ret = ESP_OK;
 
     struct bmp851_dev *dev = calloc(1, sizeof(*dev));
     ESP_RETURN_ON_FALSE(dev, ESP_ERR_NO_MEM, TAG, "calloc");
@@ -201,7 +202,7 @@ esp_err_t bmp851_init(const bmp851_config_t *cfg, bmp851_handle_t *out_handle)
 
 err:
     free(dev);
-    return ESP_FAIL;
+    return ret != ESP_OK ? ret : ESP_FAIL;
 }
 
 esp_err_t bmp851_read(bmp851_handle_t handle, bmp851_data_t *data)

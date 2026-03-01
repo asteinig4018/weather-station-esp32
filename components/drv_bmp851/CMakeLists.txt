@@ -4,5 +4,5 @@ idf_component_register(
     REQUIRES
         driver
         log
-        esp_check
+        esp_common
 )

@@ -1,0 +1,18 @@
+menu "Weather Station"
+
+    choice APP_MODE
+        prompt "Application mode"
+        default APP_MODE_DEBUG
+        help
+            Select the application mode.
+            DEBUG runs a sequential hardware test on each peripheral.
+            PRODUCTION runs the full sensor/display/network application.
+
+        config APP_MODE_DEBUG
+            bool "Debug (hardware test)"
+
+        config APP_MODE_PRODUCTION
+            bool "Production"
+    endchoice
+
+endmenu

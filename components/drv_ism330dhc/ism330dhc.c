@@ -127,6 +127,7 @@ esp_err_t ism330dhc_init(const ism330dhc_config_t *cfg,
                           ism330dhc_handle_t *out_handle)
 {
     ESP_RETURN_ON_FALSE(cfg && out_handle, ESP_ERR_INVALID_ARG, TAG, "NULL");
+    esp_err_t ret = ESP_OK;
 
     struct ism330dhc_dev *dev = calloc(1, sizeof(*dev));
     ESP_RETURN_ON_FALSE(dev, ESP_ERR_NO_MEM, TAG, "calloc");
@@ -167,7 +168,7 @@ esp_err_t ism330dhc_init(const ism330dhc_config_t *cfg,
 
 err:
     free(dev);
-    return ESP_FAIL;
+    return ret != ESP_OK ? ret : ESP_FAIL;
 }
 
 esp_err_t ism330dhc_read_accel(ism330dhc_handle_t handle,

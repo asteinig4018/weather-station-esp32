@@ -135,6 +135,7 @@ static esp_err_t ili9341_send_init_cmds(esp_lcd_panel_io_handle_t io,
 esp_err_t ili9341_init(const ili9341_config_t *cfg, ili9341_handle_t *out_handle)
 {
     ESP_RETURN_ON_FALSE(cfg && out_handle, ESP_ERR_INVALID_ARG, TAG, "NULL arg");
+    esp_err_t ret = ESP_OK;
 
     struct ili9341_dev *dev = calloc(1, sizeof(*dev));
     ESP_RETURN_ON_FALSE(dev, ESP_ERR_NO_MEM, TAG, "calloc failed");
