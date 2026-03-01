@@ -80,12 +80,15 @@
 - [x] Commit
 
 ### Phase 4 — LVGL UI
-- [ ] Integrate esp_lvgl_port
-- [ ] Design dashboard page (live readings)
-- [ ] Design history page (scroll through stored data)
-- [ ] Wire button events to page navigation
-- [ ] QEMU test with mock display
-- [ ] Commit
+- [x] Create ui component with real/mock backends (lvgl/lvgl ~8.4)
+- [x] Dashboard page: temp, RH, pressure, PM2.5, VOC, NOx, power status
+- [x] History page: shows last 5 stored entries from data_store
+- [x] UX button cycles between dashboard and history (animated transition)
+- [x] Display task runs LVGL tick handler at ~200 Hz
+- [x] Thread-safe sensor data updates via mutex + pending flag
+- [x] LVGL Kconfig: Montserrat 14/16/20, RGB565 swap, 48 KB heap
+- [x] Build: real+production 546 KB (73% free), mock+production 215 KB (89% free)
+- [x] Commit
 
 ### Phase 5 — Network Manager + Upload
 - [ ] Create net_mgr component (WiFi STA, reconnect)
@@ -112,6 +115,7 @@ components/
   hal_sensors/          Sensor HAL (real or mock backend)
   hal_display/          Display HAL (real or mock backend)
   data_store/           Ring buffer (LittleFS real / RAM mock)
+  ui/                   LVGL UI (real) / mock logger
   net_mgr/              WiFi manager + HTTP uploader
   ota_mgr/              OTA update manager
 

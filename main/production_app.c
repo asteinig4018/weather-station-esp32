@@ -1,9 +1,8 @@
 /**
- * production_app.c — Full application: event loop + tasks.
+ * production_app.c — Full application: event loop + tasks + UI.
  *
  * Sets up a dedicated application event loop, starts the sensor and button
- * tasks, and registers event handlers. The display handler currently logs
- * received data; Phase 4 will replace this with LVGL rendering.
+ * tasks, initialises the UI, and runs the LVGL display task.
  */
 
 #include "production_app.h"
@@ -12,6 +11,7 @@
 #include "button_task.h"
 #include "hal_display.h"
 #include "data_store.h"
+#include "ui.h"
 #include "app_config.h"
 
 #include "freertos/FreeRTOS.h"
@@ -37,13 +37,12 @@ static void on_sensor_data(void *handler_arg, esp_event_base_t base,
     /* Store to ring buffer */
     data_store_append(d);
 
-    ESP_LOGI(TAG, "SENSOR | T=%.1f°C  P=%.0fPa  PM2.5=%.1f  RH=%.0f%%  VOC=%.0f  "
-                   "stored=%u",
-             d->baro.temp_c, d->baro.pressure_pa,
-             d->air.pm2p5, d->air.hum_pct, d->air.voc,
-             (unsigned)data_store_count());
+    /* Update UI */
+    ui_update_sensor_data(d);
 
-    /* TODO Phase 4: update LVGL dashboard with latest data */
+    ESP_LOGD(TAG, "SENSOR | T=%.1f°C  P=%.0fPa  PM2.5=%.1f  stored=%u",
+             d->baro.temp_c, d->baro.pressure_pa,
+             d->air.pm2p5, (unsigned)data_store_count());
 }
 
 static void on_button(void *handler_arg, esp_event_base_t base,
@@ -55,8 +54,8 @@ static void on_button(void *handler_arg, esp_event_base_t base,
 
     switch (id) {
         case BUTTON_EVT_UX_PRESS:
-            ESP_LOGI(TAG, "BUTTON | UX pressed");
-            /* TODO Phase 4: navigate UI pages */
+            ESP_LOGI(TAG, "BUTTON | UX → navigate");
+            ui_navigate_next();
             break;
         case BUTTON_EVT_DBG0_PRESS:
             ESP_LOGI(TAG, "BUTTON | DBG0 pressed");
@@ -66,6 +65,20 @@ static void on_button(void *handler_arg, esp_event_base_t base,
             break;
         default:
             break;
+    }
+}
+
+/* =========================================================================
+ * Display task — runs LVGL tick handler
+ * ========================================================================= */
+
+static void display_task(void *arg)
+{
+    (void)arg;
+
+    for (;;) {
+        ui_tick();
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 
@@ -103,6 +116,10 @@ void production_app_run(void)
         ESP_LOGI(TAG, "Display initialised");
     }
 
+    /* --- Initialise UI --------------------------------------------------- */
+    ESP_ERROR_CHECK(ui_init());
+    ESP_LOGI(TAG, "UI initialised");
+
     /* --- Register event handlers ----------------------------------------- */
     ESP_ERROR_CHECK(esp_event_handler_register_with(
         loop, SENSOR_EVENTS, SENSOR_EVT_DATA, on_sensor_data, NULL));
@@ -116,9 +133,17 @@ void production_app_run(void)
     ESP_ERROR_CHECK(sensor_task_start(loop));
     ESP_ERROR_CHECK(button_task_start(loop));
 
+    /* Display task — runs LVGL tick handler at ~200 Hz */
+    BaseType_t ok = xTaskCreate(display_task, "display",
+                                 APP_TASK_DISPLAY_STACK / sizeof(StackType_t),
+                                 NULL, APP_TASK_DISPLAY_PRIO, NULL);
+    if (ok != pdPASS) {
+        ESP_LOGE(TAG, "Failed to create display task");
+    }
+
     ESP_LOGI(TAG, "All tasks started — running");
 
-    /* Main task can idle or be used for watchdog / diagnostics later */
+    /* Main task idles */
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
