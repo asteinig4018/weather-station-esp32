@@ -1,3 +1,7 @@
 # Overlay config for QEMU / mock mode builds.
 # Use: idf.py -DSDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.mock" set-target esp32s3
 CONFIG_HAL_USE_MOCK=y
+
+# QEMU does not emulate USB CDC — use UART0 for console output
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_USB_CDC=n

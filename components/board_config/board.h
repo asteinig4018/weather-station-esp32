@@ -1,4 +1,9 @@
 #pragma once
+
+#include "soc/gpio_num.h"
+#include "driver/gpio.h"
+#include "driver/i2c.h"
+
 /**
  * board.h — Hardware pin assignments for the custom ESP32-S3 weather station.
  *
